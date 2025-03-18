@@ -1,0 +1,77 @@
+
+services:
+  api-server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: api_server
+    restart: always
+    env_file:
+      - .env
+    environment:
+      DB_HOST: mysqldb
+    ports:
+      - "3000:3000"
+    networks:
+      - main
+    volumes:
+      - .:/usr/src/app
+      # - /usr/src/app/node_modules
+    command: npm run start:dev
+    depends_on:
+      - mysqldb
+
+  mysqldb:
+    image: mysql:8.0
+    container_name: mysqldb
+    restart: always
+    env_file:
+      - .env
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${DB_NAME}
+    ports:
+      - "${DB_HOST_PORT}:3306"
+    networks:
+      - main
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./seed.sql:/docker-entrypoint-initdb.d/seed.sql
+    healthcheck:
+      test: ['CMD', 'mysqladmin', 'ping', '-h', 'localhost']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  mysqldb-test:
+    image: mysql:8.0
+    container_name: mysqldb-test
+    restart: always
+    env_file:
+      - .env
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${DB_NAME}
+    ports:
+      - "${DB_TEST_HOST_PORT}:3306"
+    networks:
+      - main
+    volumes:
+      - mysql_test_data:/var/lib/mysql
+      - ./seed.sql:/docker-entrypoint-initdb.d/seed.sql
+    healthcheck:
+      test: ['CMD', 'mysqladmin', 'ping', '-h', 'localhost']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    profiles: [test]
+
+volumes:
+  mysql_data: {}
+  mysql_test_data: {}
+
+networks:
+  main:
+    driver: bridge
